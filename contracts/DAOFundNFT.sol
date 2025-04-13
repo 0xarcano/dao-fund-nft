@@ -5,15 +5,17 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./Base64.sol";
 
 contract DAOFundNFT is ERC721, ERC721Enumerable {
     using Counters for Counters.Counter;
 
     Counters.Counter private _idCounter;
     uint public maxSupply;
+    string private description;
 
     uint256 public priceUSD;
-    uint256 public donationPercentage; // in basis points (1% = 100)
+    uint256 public donationPercentage; // in percentage (1% = 1)
     address public daoTreasury;
     
     IERC20 public usdcToken;
@@ -23,6 +25,7 @@ contract DAOFundNFT is ERC721, ERC721Enumerable {
     constructor(
         string memory _name,
         string memory _symbol,
+        string memory _description,
         uint256 _maxSupply,
         uint256 _priceUSD,
         address _daoTreasury,
@@ -31,7 +34,8 @@ contract DAOFundNFT is ERC721, ERC721Enumerable {
         address _usdtAddress,
         address _daiAddress
     ) ERC721(_name, _symbol) {
-        require(_donationPercentage <= 10000, "Donation percentage too high");
+        require(_donationPercentage <= 100, "Donation percentage too high");
+        description = _description;
         maxSupply = _maxSupply;
         priceUSD = _priceUSD;
         daoTreasury = _daoTreasury;
@@ -46,7 +50,7 @@ contract DAOFundNFT is ERC721, ERC721Enumerable {
     }
 
     function calculateDonation(uint256 amount) internal view returns (uint256) {
-        return (amount * donationPercentage) / 10000;
+        return (amount * donationPercentage) / 100;
     }
 
     function mint(uint8 paymentMethod) external {
@@ -72,6 +76,31 @@ contract DAOFundNFT is ERC721, ERC721Enumerable {
 
         _safeMint(msg.sender, current);
         _idCounter.increment();
+    }
+
+    function tokenURI(uint256 _tokenId)
+        public
+        view
+        override(ERC721)
+        returns (string memory)
+    {
+        require(_exists(_tokenId), "Token does not exist");
+        string memory jsonURI =  Base64.encode(abi.encodePacked(
+            '{ "name": "',
+            name(),
+            ' #',
+            _tokenId,
+            '", "description": "',
+            description,
+            '", "image": "'
+            '// TODO: Calculate image URL', 
+            '"}'
+        ));
+
+        return string(abi.encodePacked(
+            'data:application/json;base64,',
+            jsonURI
+        ));
     }
 
     // Override required
