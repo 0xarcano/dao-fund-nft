@@ -2,32 +2,53 @@ const deploy = async () => {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with the account:", deployer.address);
 
-  const nftName = "EthEcuadorAvatars";
-  const nftSymbol = "EECA";
-  const nftDescription = "Eth Ecuador Avatars";
-  const nftMaxSupply = 100;
-  const nftMintPrice = 35;
-  const nftDaoTreasuryAddress = "0x88d2f5B400A7EF87bff74F66914019ec4FD1DD2d";
-  const nftDaoTreasuryDonationPercentage = 10;
-  const usdcContractAddress = "0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8";
-  const usdtContractAddress = "0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0";
-  const daiContractAddress = "0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357";
-
-  console.log("Deploying with parameters:");
-  console.log("NFT Name:", nftName);
-  console.log("NFT Symbol:", nftSymbol);
-  console.log("NFT Description:", nftDescription);
-  console.log("NFT Max Supply:", nftMaxSupply);
-  console.log("NFT Mint Price:", nftMintPrice);
-  console.log("NFT DAO Treasury Address:", nftDaoTreasuryAddress);
-  console.log("NFT DAO Treasury Donation Percentage:", nftDaoTreasuryDonationPercentage);
-  console.log("USDC Contract Address:", usdcContractAddress);
-  console.log("USDT Contract Address:", usdtContractAddress);
-  console.log("DAI Contract Address:", daiContractAddress);
+  const testAccount = "0x8DE3D6653a1a04710E3C8170fEC3b030A2272D19";
+  const initialSupply = ethers.utils.parseUnits("1000", 6); // 1000 tokens with 6 decimals
 
   try {
+    // Deploy test ERC20 tokens
+    console.log("Deploying test ERC20 tokens...");
+    
+    const TestERC20 = await ethers.getContractFactory("TestERC20");
+    
+    const usdc = await TestERC20.deploy("USD Coin", "USDC", 6);
+    await usdc.deployed();
+    await usdc.mint(testAccount, initialSupply);
+    console.log("USDC deployed to:", usdc.address);
+    
+    const usdt = await TestERC20.deploy("Tether USD", "USDT", 6);
+    await usdt.deployed();
+    await usdt.mint(testAccount, initialSupply);
+    console.log("USDT deployed to:", usdt.address);
+    
+    const dai = await TestERC20.deploy("Dai Stablecoin", "DAI", 18);
+    await dai.deployed();
+    await dai.mint(testAccount, ethers.utils.parseEther("1000")); // DAI uses 18 decimals
+    console.log("DAI deployed to:", dai.address);
+
+    // Deploy NFT contract
+    const nftName = "EthEcuadorTest";
+    const nftSymbol = "EECT";
+    const nftDescription = "Eth Ecuador Avatars";
+    const nftMaxSupply = 100;
+    const nftMintPrice = 35;
+    const nftDaoTreasuryAddress = "0x88d2f5B400A7EF87bff74F66914019ec4FD1DD2d";
+    const nftDaoTreasuryDonationPercentage = 10;
+
+    console.log("\nDeploying NFT with parameters:");
+    console.log("NFT Name:", nftName);
+    console.log("NFT Symbol:", nftSymbol);
+    console.log("NFT Description:", nftDescription);
+    console.log("NFT Max Supply:", nftMaxSupply);
+    console.log("NFT Mint Price:", nftMintPrice);
+    console.log("NFT DAO Treasury Address:", nftDaoTreasuryAddress);
+    console.log("NFT DAO Treasury Donation Percentage:", nftDaoTreasuryDonationPercentage);
+    console.log("USDC Contract Address:", usdc.address);
+    console.log("USDT Contract Address:", usdt.address);
+    console.log("DAI Contract Address:", dai.address);
+
     const DAOFundNFT = await ethers.getContractFactory("DAOFundNFT");
-    const deployed = await DAOFundNFT.deploy(
+    const nft = await DAOFundNFT.deploy(
       nftName,
       nftSymbol,
       nftDescription,
@@ -35,17 +56,18 @@ const deploy = async () => {
       nftMintPrice,
       nftDaoTreasuryAddress,
       nftDaoTreasuryDonationPercentage,
-      usdcContractAddress,
-      usdtContractAddress,
-      daiContractAddress
+      usdc.address,
+      usdt.address,
+      dai.address
     );
 
-    console.log("EthEcuadorAvatars deployed at:", deployed.address);
-    await deployed.deployed(); // Wait for the contract to be fully deployed
+    await nft.deployed();
+    console.log("\nEthEcuadorAvatars deployed at:", nft.address);
     console.log("Contract deployment confirmed.");
 
   } catch (error) {
     console.error("Deployment failed:", error);
+    throw error;
   }
 };
 

@@ -6,7 +6,11 @@ module.exports = {
   solidity: "0.8.4",
   networks: {
     sepolia: {
-      url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,
+      url: 'https://eth-sepolia.g.alchemy.com/v2/-GSf2baqVrXPNWP1nN5tS2diSO7EU-Bc',
+      accounts: [`0x${process.env.PRIVATE_KEY}`],
+    },
+    hoodi: {
+      url: 'https://eth-hoodi.g.alchemy.com/v2/-GSf2baqVrXPNWP1nN5tS2diSO7EU-Bc',
       accounts: [`0x${process.env.PRIVATE_KEY}`],
     },
   },

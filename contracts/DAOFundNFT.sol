@@ -18,12 +18,17 @@ contract DAOFundNFT is ERC721, ERC721Enumerable, DAOFundDNA {
     mapping (uint256 => uint256) public tokenDNA;
 
     uint256 public priceUSD;
-    uint256 public donationPercentage; // in percentage (1% = 1)
+    uint256 public donationPercentage;
     address public daoTreasury;
     
     IERC20 public usdcToken;
     IERC20 public usdtToken;
     IERC20 public daiToken;
+
+    modifier onlyDeployer() {
+        require(msg.sender == _deployer, "Caller is not the deployer");
+        _;
+    }
 
     constructor(
         string memory _name,
@@ -55,31 +60,41 @@ contract DAOFundNFT is ERC721, ERC721Enumerable, DAOFundDNA {
     function deterministicPseudoRandomDNA(
         uint256 _tokenId,
         address _minter
-    ) public pure returns (uint256) {
+    ) public view returns (uint256) {
             require(_tokenId > 0, "Token ID must be greater than 0");
             require(_minter != address(0), "Minter address cannot be zero");
-            uint256 combindedParams = _tokenId + uint256(uint160(_minter));
+            uint256 combindedParams = _tokenId + uint256(uint160(_minter)) + block.number;
             bytes memory encondedParams = abi.encodePacked(combindedParams);
             bytes32 hasedParams = keccak256(encondedParams);
 
             return uint256(hasedParams);
     }
 
-    function calculateTokenAmount() internal view returns (uint256) {
-        return priceUSD * 1e6;
+    function calculateTokenAmount(uint8 paymentMethod) internal view returns (uint256) {
+        if (paymentMethod == 2) { // DAI (18 decimals)
+            return priceUSD * 1e18;
+        } else { // USDC/USDT (6 decimals)
+            return priceUSD * 1e6;
+        }
     }
 
     function calculateDonation(uint256 amount) internal view returns (uint256) {
         return (amount * donationPercentage) / 100;
     }
 
-    function mint(uint8 paymentMethod) public {
+    function getName() public view returns (string memory) {
+        return name();
+    }
+
+    function mint(uint8 paymentMethod, uint256 tip) public {
         uint256 current = _idCounter.current();
         require(current < maxSupply, string(abi.encodePacked("No ", name(), " left :(")));
         
-        uint256 amount = calculateTokenAmount();
-        uint256 donation = calculateDonation(amount);
-        uint256 totalAmount = amount;
+        uint256 baseAmount = calculateTokenAmount(paymentMethod);
+        uint256 totalAmount = baseAmount + tip;
+        uint256 baseDonation = calculateDonation(baseAmount);
+        uint256 tipDonation = calculateDonation(tip);
+        uint256 totalDonation = baseDonation + tipDonation;
         IERC20 token;
 
         if (paymentMethod == 0) { // USDC
@@ -94,12 +109,17 @@ contract DAOFundNFT is ERC721, ERC721Enumerable, DAOFundDNA {
 
         token.approve(address(this), totalAmount);
         
-        require(token.transferFrom(msg.sender, _deployer , amount - donation), "Token transfer failed");
-        require(token.transferFrom(msg.sender, daoTreasury, donation), "Donation transfer failed");
+        require(token.transferFrom(msg.sender, _deployer, totalAmount - totalDonation), "Token transfer failed");
+        require(token.transferFrom(msg.sender, daoTreasury, totalDonation), "Donation transfer failed");
 
         tokenDNA[current] = deterministicPseudoRandomDNA(current, msg.sender);
         _safeMint(msg.sender, current);
         _idCounter.increment();
+    }
+
+    function setDonationPercentage(uint256 _newPercentage) public onlyDeployer {
+        require(_newPercentage <= 100, "Donation percentage too high");
+        donationPercentage = _newPercentage;
     }
 
     function _baseURI() internal pure override returns (string memory) {
